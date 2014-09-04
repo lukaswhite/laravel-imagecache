@@ -3,6 +3,7 @@
 use App,
 		\Illuminate\Filesystem\Filesystem,
 		Intervention\Image\Image,
+		Intervention\Image\ImageManager,
 		Config,
 		Response;
 
@@ -46,13 +47,13 @@ class ImagecacheController extends \Controller {
 		// and the filename
 		$filename = array_pop($args);
 
-		if (!file_exists(storage_path() . '/' . $filepath)) {
+		if (!file_exists(storage_path() . '/' . $filepath)) {			
 			App::abort(404);
 		}
 
+		$manager = new ImageManager(array('driver' => 'gd'));
 
-
-		$image = Image::make(storage_path() . '/' . $filepath);
+		$image = $manager->make(storage_path() . '/' . $filepath);
 			
 		$config = Config::get('imagecache::presets.'.$preset);
 
@@ -65,12 +66,18 @@ class ImagecacheController extends \Controller {
 				case 'crop':					
 					$image->crop($params['width'], $params['height']);
 					break;
-				case 'resize':
+				case 'resize':					
 					$image->resize(
 						((isset($params['width'])) ? $params['width'] : null),
 						((isset($params['height'])) ? $params['height'] : null),
-						((isset($params['ratio'])) ? $params['ratio'] : true),
-						((isset($params['upsize'])) ? $params['upsize'] : false)
+						function($constraint){
+							if ((isset($params['ratio'])) && $params['ratio']) {
+								$constraint->aspectRatio();    
+							}
+							if ((isset($params['upsize'])) && $params['upsize']) {
+								$constraint->upsize();
+							}
+						}						
 						);
 					break;
 				case 'flip':
@@ -81,17 +88,10 @@ class ImagecacheController extends \Controller {
 		
 		$image->save($path . '/' . $filename);
 
-		// Set the headers
-		switch ($image->type) {
-			case 'jpg':
-
-				break;
-		}
-
 		// Create the response
 		// Note: the first param expects a string, so it'll use the __toString() method on Illuminate\Image
 		$response = Response::make($image, 200, array(
-			'Content-Type' => $image->mime,
+			'Content-Type' => $image->mime(),
 			//'Content-Length' => $info['file_size'],
 		));
 
