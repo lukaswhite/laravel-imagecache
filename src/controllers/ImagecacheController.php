@@ -70,7 +70,7 @@ class ImagecacheController extends \Controller {
 					$image->resize(
 						((isset($params['width'])) ? $params['width'] : null),
 						((isset($params['height'])) ? $params['height'] : null),
-						function($constraint){
+						function($constraint) use ($params){
 							if ((isset($params['ratio'])) && $params['ratio']) {
 								$constraint->aspectRatio();    
 							}
